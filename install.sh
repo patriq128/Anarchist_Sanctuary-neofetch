@@ -2,402 +2,430 @@
 set -euo pipefail
 
 CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch"
-SCRIPT="$CONFIG_DIR/random-text.sh"
+RANDOM_SCRIPT="$CONFIG_DIR/random-text.sh"
 
-# --------------------------------------------------
-# Check dependencies
-# --------------------------------------------------
+# Farby na ukážku
+RED=$'\033[31m'
+GREEN=$'\033[32m'
+YELLOW=$'\033[33m'
+BLUE=$'\033[34m'
+MAGENTA=$'\033[35m'
+CYAN=$'\033[36m'
+WHITE=$'\033[37m'
+RESET=$'\033[0m'
 
+echo -e "${CYAN}╭────────────────────────────────────╮${RESET}"
+echo -e "${CYAN}│   Fastfetch Random Text Installer  │${RESET}"
+echo -e "${CYAN}╰────────────────────────────────────╯${RESET}"
+echo
+
+# Kontrola závislostí
 if ! command -v fastfetch >/dev/null 2>&1; then
-    echo "Error: Fastfetch is not installed."
+    echo -e "${RED}Chyba:${RESET} Fastfetch nie je nainštalovaný."
     exit 1
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "Error: Python 3 is not installed."
+    echo -e "${RED}Chyba:${RESET} Python 3 nie je nainštalovaný."
     exit 1
 fi
 
 mkdir -p "$CONFIG_DIR"
 
-# --------------------------------------------------
-# Find or generate Fastfetch configuration
-# --------------------------------------------------
-
-CONFIG=""
-
-for file in "$CONFIG_DIR/config.jsonc" "$CONFIG_DIR/config.json"; do
-    if [[ -f "$file" ]]; then
-        CONFIG="$file"
-        break
-    fi
-done
-
-if [[ -z "$CONFIG" ]]; then
-    fastfetch --gen-config >/dev/null 2>&1 || true
-
-    for file in "$CONFIG_DIR/config.jsonc" "$CONFIG_DIR/config.json"; do
-        if [[ -f "$file" ]]; then
-            CONFIG="$file"
-            break
-        fi
-    done
-fi
-
-if [[ -z "$CONFIG" ]]; then
+# Nájdeme konfiguráciu alebo vygenerujeme novú
+if [[ -f "$CONFIG_DIR/config.jsonc" ]]; then
     CONFIG="$CONFIG_DIR/config.jsonc"
-    printf '{\n  "modules": []\n}\n' > "$CONFIG"
+elif [[ -f "$CONFIG_DIR/config.json" ]]; then
+    CONFIG="$CONFIG_DIR/config.json"
+else
+    echo "Konfigurácia sa nenašla. Generujem novú..."
+    fastfetch --gen-config
+
+    if [[ -f "$CONFIG_DIR/config.jsonc" ]]; then
+        CONFIG="$CONFIG_DIR/config.jsonc"
+    elif [[ -f "$CONFIG_DIR/config.json" ]]; then
+        CONFIG="$CONFIG_DIR/config.json"
+    else
+        echo -e "${RED}Chyba:${RESET} Fastfetch nevytvoril konfiguračný súbor."
+        echo "Skontroluj príkaz: fastfetch --gen-config"
+        exit 1
+    fi
 fi
 
-# --------------------------------------------------
-# Welcome
-# --------------------------------------------------
-
-clear
-
-echo
-echo "  ========================================"
-echo "       FASTFETCH RANDOM TEXT INSTALLER"
-echo "  ========================================"
-echo
-echo "  Create your own random text module!"
+echo -e "Konfigurácia: ${CYAN}$CONFIG${RESET}"
 echo
 
-# --------------------------------------------------
-# Module label
-# --------------------------------------------------
-
-while true; do
-    read -r -p "Module label (e.g. Ⓐ, Quote, Meme): " MODULE_LABEL
-
-    if [[ -n "${MODULE_LABEL//[[:space:]]/}" ]]; then
-        break
-    fi
-
-    echo "Please enter a module label."
-done
-
-# --------------------------------------------------
-# Color selector
-# --------------------------------------------------
+# Zadanie názvu modulu
+read -r -p "Názov modulu (napr. Nice): " MODULE_KEY
+MODULE_KEY="${MODULE_KEY:-Random}"
 
 echo
-echo "Choose your output color:"
-echo
+echo "Dostupné farby:"
 
-printf '  1) \033[41m   \033[0m Red\n'
-printf '  2) \033[42m   \033[0m Green\n'
-printf '  3) \033[43m   \033[0m Yellow\n'
-printf '  4) \033[44m   \033[0m Blue\n'
-printf '  5) \033[45m   \033[0m Magenta\n'
-printf '  6) \033[46m   \033[0m Cyan\n'
-printf '  7) \033[47m   \033[0m White\n'
+echo -e "  ${RED}red${RESET}       ${GREEN}green${RESET}     ${YELLOW}yellow${RESET}    ${BLUE}blue${RESET}"
+echo -e "  ${MAGENTA}magenta${RESET}   ${CYAN}cyan${RESET}      ${WHITE}white${RESET}     default"
 
 echo
+read -r -p "Farba textu [yellow]: " COLOR
+COLOR="${COLOR:-yellow}"
 
-while true; do
-    read -r -p "Select a color [1-7]: " COLOR_CHOICE
+case "$COLOR" in
+    red|green|yellow|blue|magenta|cyan|white|default) ;;
+    *)
+        echo -e "${RED}Neznáma farba:${RESET} $COLOR"
+        exit 1
+        ;;
+esac
 
-    case "$COLOR_CHOICE" in
-        1) OUTPUT_COLOR="red";     break ;;
-        2) OUTPUT_COLOR="green";   break ;;
-        3) OUTPUT_COLOR="yellow";  break ;;
-        4) OUTPUT_COLOR="blue";    break ;;
-        5) OUTPUT_COLOR="magenta"; break ;;
-        6) OUTPUT_COLOR="cyan";    break ;;
-        7) OUTPUT_COLOR="white";   break ;;
-        *) echo "Invalid selection. Choose a number from 1 to 7." ;;
-    esac
-done
-
-# --------------------------------------------------
-# Custom texts
-# --------------------------------------------------
+case "$COLOR" in
+    red)     COLOR_CODE="$RED" ;;
+    green)   COLOR_CODE="$GREEN" ;;
+    yellow)  COLOR_CODE="$YELLOW" ;;
+    blue)    COLOR_CODE="$BLUE" ;;
+    magenta) COLOR_CODE="$MAGENTA" ;;
+    cyan)    COLOR_CODE="$CYAN" ;;
+    white)   COLOR_CODE="$WHITE" ;;
+    default) COLOR_CODE="" ;;
+esac
 
 echo
-echo "Enter the texts you want Fastfetch to display."
-echo "Separate each text with a comma."
+echo "Zadaj texty oddelené čiarkou."
+echo "Príklad: Hello world, Have a nice day, Linux forever"
+read -r -p "Texty: " TEXT_INPUT
+
+if [[ -z "${TEXT_INPUT//[[:space:]]/}" ]]; then
+    echo -e "${RED}Chyba:${RESET} Musíš zadať aspoň jeden text."
+    exit 1
+fi
+
+# Záloha existujúcej konfigurácie
+BACKUP="$CONFIG.bak"
+cp -a "$CONFIG" "$BACKUP"
 echo
-echo "Example:"
-echo "hello world, nice, skibidi toilet"
-echo
+echo -e "Záloha konfigurácie: ${GREEN}$BACKUP${RESET}"
 
-while true; do
-    read -r -p "Your texts: " TEXT_INPUT
+# Vytvorenie skriptu a úprava konfigurácie
+export CONFIG RANDOM_SCRIPT MODULE_KEY COLOR TEXT_INPUT
 
-    if [[ -n "${TEXT_INPUT//[[:space:]]/}" ]]; then
-        break
-    fi
-
-    echo "Please enter at least one text."
-done
-
-# --------------------------------------------------
-# Create the random text script
-# --------------------------------------------------
-
-python3 - "$SCRIPT" "$TEXT_INPUT" <<'PY'
+python3 <<'PYTHON'
+import json
+import os
+import re
 import shlex
 import sys
 from pathlib import Path
 
-script_path = Path(sys.argv[1])
-raw_texts = sys.argv[2]
+config_path = Path(os.environ["CONFIG"])
+script_path = Path(os.environ["RANDOM_SCRIPT"])
+module_key = os.environ["MODULE_KEY"]
+color = os.environ["COLOR"]
+text_input = os.environ["TEXT_INPUT"]
 
-texts = [
-    item.strip()
-    for item in raw_texts.split(",")
-    if item.strip()
-]
+# Čiarkou oddelené texty
+texts = [item.strip() for item in text_input.split(",") if item.strip()]
 
 if not texts:
-    raise SystemExit("Error: No valid texts were provided.")
+    sys.exit("Chyba: Nebol zadaný žiadny platný text.")
 
-content = """#!/usr/bin/env bash
-set -euo pipefail
-
-texts=(
-"""
+# Vygenerovanie bezpečného Bash skriptu
+lines = [
+    "#!/usr/bin/env bash",
+    "set -euo pipefail",
+    "",
+    "texts=(",
+]
 
 for item in texts:
-    content += f"    {shlex.quote(item)}\n"
+    lines.append("    " + shlex.quote(item))
 
-content += """)
-printf '%s\\n' "${texts[RANDOM % ${#texts[@]}]}"
-"""
+lines.extend([
+    ")",
+    "",
+    'printf "%s\\n" "${texts[RANDOM % ${#texts[@]}]}"',
+    "",
+])
 
-script_path.write_text(content, encoding="utf-8")
+script_path.write_text("\n".join(lines), encoding="utf-8")
 script_path.chmod(0o755)
 
-print()
-print(f"Random text script created: {script_path}")
-print(f"Available texts: {len(texts)}")
-PY
+# Farba Fastfetchu
+module = {
+    "type": "command",
+    "key": module_key,
+    "text": str(script_path),
+    "format": "{result}",
+}
 
-# --------------------------------------------------
-# Add or update the Fastfetch module
-# --------------------------------------------------
+if color != "default":
+    module["outputColor"] = color
 
-python3 - "$CONFIG" "$SCRIPT" "$MODULE_LABEL" "$OUTPUT_COLOR" <<'PY'
-import json
-import re
-import sys
-from pathlib import Path
-
-config_path = Path(sys.argv[1])
-script_path = sys.argv[2]
-module_label = sys.argv[3]
-output_color = sys.argv[4]
+module_json = json.dumps(module, ensure_ascii=False, indent=4)
 
 config = config_path.read_text(encoding="utf-8")
 
-# Find the modules array.
-match = re.search(r'"modules"\s*:\s*\[', config)
+# Nájdeme pole "modules", pričom rešpektujeme reťazce a komentáre JSONC.
+key_match = re.search(r'"modules"\s*:', config)
+if not key_match:
+    sys.exit('Chyba: V konfigurácii sa nenašlo pole "modules".')
 
-if not match:
-    raise SystemExit(
-        'Error: Could not find the "modules" array. '
-        "The configuration was not modified."
-    )
+i = key_match.end()
+while i < len(config) and config[i].isspace():
+    i += 1
 
-start = match.end()
+if i >= len(config) or config[i] != "[":
+    sys.exit('Chyba: Pole "modules" nemá platný začiatok "[".')
 
-# Find the closing bracket, respecting strings and comments.
+array_start = i
+i += 1
 depth = 1
-i = start
 in_string = False
 escaped = False
-line_comment = False
-block_comment = False
+in_line_comment = False
+in_block_comment = False
+array_end = None
 
 while i < len(config):
-    c = config[i]
+    ch = config[i]
     nxt = config[i + 1] if i + 1 < len(config) else ""
 
-    if line_comment:
-        if c == "\n":
-            line_comment = False
-    elif block_comment:
-        if c == "*" and nxt == "/":
-            block_comment = False
+    if in_line_comment:
+        if ch == "\n":
+            in_line_comment = False
+        i += 1
+        continue
+
+    if in_block_comment:
+        if ch == "*" and nxt == "/":
+            in_block_comment = False
+            i += 2
+        else:
             i += 1
-    elif in_string:
+        continue
+
+    if in_string:
         if escaped:
             escaped = False
-        elif c == "\\":
+        elif ch == "\\":
             escaped = True
-        elif c == '"':
+        elif ch == '"':
             in_string = False
-    elif c == "/" and nxt == "/":
-        line_comment = True
         i += 1
-    elif c == "/" and nxt == "*":
-        block_comment = True
-        i += 1
-    elif c == '"':
+        continue
+
+    if ch == "/" and nxt == "/":
+        in_line_comment = True
+        i += 2
+        continue
+
+    if ch == "/" and nxt == "*":
+        in_block_comment = True
+        i += 2
+        continue
+
+    if ch == '"':
         in_string = True
-    elif c == "[":
+    elif ch == "[":
         depth += 1
-    elif c == "]":
+    elif ch == "]":
         depth -= 1
         if depth == 0:
+            array_end = i
             break
 
     i += 1
-else:
-    raise SystemExit(
-        "Error: The modules array has no closing bracket."
-    )
 
-array_end = i
+if array_end is None:
+    sys.exit('Chyba: Pole "modules" nemá uzatváraciu zátvorku "]".')
 
-# Parse top-level module objects.
-objects = []
-obj_start = None
-brace_depth = 0
-in_string = False
-escaped = False
-line_comment = False
-block_comment = False
+# Rozdelíme pole na položky najvyššej úrovne.
+# Funguje pre reťazce ("title"), objekty ({...}) aj vnorené polia.
+def get_elements(source, start, end):
+    elements = []
+    i = start + 1
+    token_start = None
+    depth_stack = []
+    in_string = False
+    escaped = False
+    line_comment = False
+    block_comment = False
 
-j = start
+    while i < end:
+        ch = source[i]
+        nxt = source[i + 1] if i + 1 < end else ""
 
-while j < array_end:
-    c = config[j]
-    nxt = config[j + 1] if j + 1 < array_end else ""
+        if line_comment:
+            if ch == "\n":
+                line_comment = False
+            i += 1
+            continue
 
-    if line_comment:
-        if c == "\n":
-            line_comment = False
-    elif block_comment:
-        if c == "*" and nxt == "/":
-            block_comment = False
-            j += 1
-    elif in_string:
-        if escaped:
-            escaped = False
-        elif c == "\\":
-            escaped = True
-        elif c == '"':
-            in_string = False
-    elif c == "/" and nxt == "/":
-        line_comment = True
-        j += 1
-    elif c == "/" and nxt == "*":
-        block_comment = True
-        j += 1
-    elif c == '"':
-        in_string = True
-    elif c == "{":
-        if brace_depth == 0:
-            obj_start = j
-        brace_depth += 1
-    elif c == "}":
-        brace_depth -= 1
-        if brace_depth == 0 and obj_start is not None:
-            objects.append((obj_start, j + 1))
-            obj_start = None
+        if block_comment:
+            if ch == "*" and nxt == "/":
+                block_comment = False
+                i += 2
+            else:
+                i += 1
+            continue
 
-    j += 1
+        if in_string:
+            if escaped:
+                escaped = False
+            elif ch == "\\":
+                escaped = True
+            elif ch == '"':
+                in_string = False
+            i += 1
+            continue
 
-# Build the module.
-module_data = {
-    "type": "command",
-    "key": module_label,
-    "text": script_path,
-    "format": "{result}",
-    "outputColor": output_color,
-}
+        if ch == "/" and nxt == "/":
+            line_comment = True
+            i += 2
+            continue
 
-module = json.dumps(
-    module_data,
-    ensure_ascii=False,
-    indent=4,
+        if ch == "/" and nxt == "*":
+            block_comment = True
+            i += 2
+            continue
+
+        if ch == '"':
+            if token_start is None:
+                token_start = i
+            in_string = True
+            i += 1
+            continue
+
+        if ch in "[{":
+            if token_start is None:
+                token_start = i
+            depth_stack.append("]" if ch == "[" else "}")
+            i += 1
+            continue
+
+        if ch in "]}":
+            if depth_stack:
+                depth_stack.pop()
+                i += 1
+                continue
+
+            # Klamra zamykająca samo pole modules.
+            break
+
+        if ch == "," and not depth_stack:
+            if token_start is not None:
+                token_end = i
+                while token_end > token_start and source[token_end - 1].isspace():
+                    token_end -= 1
+                if token_start < token_end:
+                    elements.append((token_start, token_end))
+                token_start = None
+            i += 1
+            continue
+
+        if token_start is None and not ch.isspace():
+            token_start = i
+
+        i += 1
+
+    if token_start is not None:
+        token_end = end
+        while token_end > token_start and source[token_end - 1].isspace():
+            token_end -= 1
+        if token_start < token_end:
+            elements.append((token_start, token_end))
+
+    return elements
+
+elements = get_elements(config, array_start, array_end)
+
+# Odstránime osamelú úvodnú čiarku po "[" z poškodenej konfigurácie,
+# napríklad: "modules": [, "title", ...
+between = config[array_start + 1:array_end]
+cleaned_between = re.sub(r"^(\s*),", r"\1", between, count=1)
+
+if cleaned_between != between:
+    config = config[:array_start + 1] + cleaned_between + config[array_end:]
+    # Prepočítame koniec po oprave
+    array_end += len(cleaned_between) - len(between)
+    elements = get_elements(config, array_start, array_end)
+
+# Ak už náš modul existuje, nahradíme ho namiesto vytvárania duplicity.
+existing = None
+for start, end in elements:
+    item = config[start:end]
+    if item.startswith("{") and str(script_path) in item:
+        existing = (start, end)
+        break
+
+if existing:
+    start, end = existing
+    config = config[:start] + module_json + config[end:]
+    config_path.write_text(config, encoding="utf-8")
+    print("Existujúci random-text modul bol aktualizovaný.")
+    sys.exit(0)
+
+# Nájdeme reťazcové moduly title a separator.
+def is_module_string(item, name):
+    try:
+        return json.loads(item) == name
+    except (json.JSONDecodeError, ValueError):
+        return False
+
+title_item = next(
+    ((start, end) for start, end in elements
+     if is_module_string(config[start:end], "title")),
+    None,
 )
-
-module = "\n".join(
-    "        " + line
-    for line in module.splitlines()
-)
-
-# Locate an existing installation of this script.
-script_json = json.dumps(script_path, ensure_ascii=False)
-
-script_pattern = re.compile(
-    r'"text"\s*:\s*' + re.escape(script_json)
-)
-
-existing_module = next(
-    (
-        (obj_start, obj_end)
-        for obj_start, obj_end in objects
-        if script_pattern.search(config[obj_start:obj_end])
-    ),
+separator_item = next(
+    ((start, end) for start, end in elements
+     if is_module_string(config[start:end], "separator")),
     None,
 )
 
-if existing_module:
-    obj_start, obj_end = existing_module
+# Zachováme odsadenie podľa konfigurácie.
+indent = "    "
+if title_item:
+    line_start = config.rfind("\n", 0, title_item[0]) + 1
+    existing_indent = config[line_start:title_item[0]]
+    if existing_indent.strip() == "":
+        indent = existing_indent
 
-    config = (
-        config[:obj_start]
-        + module
-        + config[obj_end:]
-    )
+# Pred separator, teda za title, vložíme nový objekt.
+if separator_item:
+    insert_at = separator_item[0]
+    insertion = module_json + ",\n" + indent
+    config = config[:insert_at] + insertion + config[insert_at:]
 
-    action = "updated"
-else:
-    # Insert immediately after the title module.
-    title_module = next(
-        (
-            (obj_start, obj_end)
-            for obj_start, obj_end in objects
-            if re.search(
-                r'"type"\s*:\s*"title"',
-                config[obj_start:obj_end]
-            )
-        ),
-        None,
-    )
+elif title_item:
+    # Ak separator chýba, vložíme modul za title.
+    _, title_end = title_item
+    cursor = title_end
 
-    if title_module:
-        _, title_end = title_module
-        insert_at = title_end
-        separator = ","
+    while cursor < array_end and config[cursor].isspace():
+        cursor += 1
+
+    if cursor < array_end and config[cursor] == ",":
+        # Čiarka už oddeľuje title od nasledujúcej položky.
+        cursor += 1
+        config = config[:cursor] + "\n" + indent + module_json + "," + config[cursor:]
     else:
-        insert_at = start
-        separator = "," if config[start:array_end].strip() else ""
+        # Title je posledná položka.
+        config = config[:title_end] + ",\n" + indent + module_json + config[title_end:]
 
-    config = (
-        config[:insert_at]
-        + separator
-        + "\n"
-        + module
-        + config[insert_at:]
-    )
-
-    action = "added"
+else:
+    # Ak title neexistuje, pridáme modul na začiatok poľa.
+    insert_at = array_start + 1
+    config = config[:insert_at] + "\n" + indent + module_json + "," + config[insert_at:]
 
 config_path.write_text(config, encoding="utf-8")
-
-print()
-print(f"Module '{module_label}' was {action}.")
-print(f"Output color: {output_color}")
-print(f"Configuration: {config_path}")
-PY
-
-# --------------------------------------------------
-# Finished
-# --------------------------------------------------
+print("Random-text modul bol pridaný do konfigurácie.")
+PYTHON
 
 echo
-echo "  ========================================"
-echo "       INSTALLATION COMPLETED!"
-echo "  ========================================"
+echo -e "${GREEN}Hotovo!${RESET}"
+echo -e "Skript: ${CYAN}$RANDOM_SCRIPT${RESET}"
+echo -e "Konfigurácia: ${CYAN}$CONFIG${RESET}"
 echo
-echo "  Module: $MODULE_LABEL"
-echo "  Color:  $OUTPUT_COLOR"
-echo "  Texts:  configured successfully"
+echo -e "Ukážka vybranej farby: ${COLOR_CODE}Random text module${RESET}"
 echo
-echo "  Run 'fastfetch' to see your new module."
-echo
+echo "Spúšťam Fastfetch..."
+fastfetch
