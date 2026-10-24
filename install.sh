@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -384,4 +383,3 @@ echo "  Texts:  configured successfully"
 echo
 echo "  Run 'fastfetch' to see your new module."
 echo
-```
