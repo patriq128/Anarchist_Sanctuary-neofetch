@@ -5,6 +5,8 @@ set -euo pipefail
 CONFIG_DIR="$HOME/.config/fastfetch"
 SCRIPT="$CONFIG_DIR/random-text.sh"
 
+fastfetch --gen-config
+
 # 1. Nájdeme alebo vytvoríme Fastfetch konfiguráciu
 if ! command -v fastfetch >/dev/null 2>&1; then
     echo "Fastfetch nie je nainštalovaný."
