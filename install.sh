@@ -347,14 +347,15 @@ if existing_module:
 
     action = "updated"
 else:
+    # Insert the module at the beginning of the modules array.
     separator = "," if config[start:array_end].strip() else ""
 
     config = (
-        config[:array_end]
-        + separator
+        config[:start]
         + "\n"
         + module
-        + "\n    "
+        + separator
+        + config[start:array_end]
         + config[array_end:]
     )
 
