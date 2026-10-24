@@ -1,4 +1,7 @@
-# Anarchist_Sanctuary-neofetch
-neofetch configs that is inspired by anarchist sanctuary
+# Random_text-fastfetch
 
-## In progress
+takze ked to chces spustit spusti len tento command a rob to ci to pise
+
+```
+bash <(curl -fsSL https://raw.githubusercontent.com/patriq128/Random_text-fastfetch/main/installer.sh)
+```
