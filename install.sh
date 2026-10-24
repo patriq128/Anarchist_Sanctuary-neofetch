@@ -347,16 +347,33 @@ if existing_module:
 
     action = "updated"
 else:
-    # Insert the module at the beginning of the modules array.
-    separator = "," if config[start:array_end].strip() else ""
+    # Insert immediately after the title module.
+    title_module = next(
+        (
+            (obj_start, obj_end)
+            for obj_start, obj_end in objects
+            if re.search(
+                r'"type"\s*:\s*"title"',
+                config[obj_start:obj_end]
+            )
+        ),
+        None,
+    )
+
+    if title_module:
+        _, title_end = title_module
+        insert_at = title_end
+        separator = ","
+    else:
+        insert_at = start
+        separator = "," if config[start:array_end].strip() else ""
 
     config = (
-        config[:start]
+        config[:insert_at]
+        + separator
         + "\n"
         + module
-        + separator
-        + config[start:array_end]
-        + config[array_end:]
+        + config[insert_at:]
     )
 
     action = "added"
