@@ -1,33 +1,45 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
 
+  // The logo is installed by install.sh. Fastfetch colours it with color 1,
+  // so it follows the theme you picked.
   "logo": {
     "type": "file",
     "source": "~/.config/fastfetch/logo.txt",
-    "color": {"1": "red"},
+    "color": { "1": "cyan" },
     "padding": {
       "top": 1,
-      "left": 1
+      "left": 2
     }
   },
 
+  // Two spaces between a key and its value keeps the fetch airy.
+  "display": {
+    "separator": "  "
+  },
+
+  // AuraFetch renders one quote per fetch as a card.
+  // splitLines keeps the card intact; key " " hides the module key.
   "modules": [
-    {
-    	"type": "command",
-	"key": "Ⓐ",
-        "text": "~/.config/fastfetch/random-text.sh",
-        "format": "{result}",
-        "outputColor": "red"
-    },
     "title",
-    "separator",
+
+    {
+      "type": "command",
+      "key": " ",
+      "text": "~/.config/fastfetch/random-text.sh",
+      "splitLines": true,
+      "useOutput": "stdout",
+      "outputColor": "cyan"
+    },
+
+    { "type": "separator", "string": "─" },
+
     "os",
     "host",
     "kernel",
     "uptime",
     "packages",
     "shell",
-    "display",
     "de",
     "wm",
     "wmtheme",
@@ -38,6 +50,7 @@
     "terminal",
     "terminalfont",
     "cpu",
+    "cpuusage",
     "gpu",
     "memory",
     "swap",
